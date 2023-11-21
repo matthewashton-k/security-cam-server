@@ -16,15 +16,15 @@ use crate::authentication::validate_session;
 
 
 #[post("/new_video")]
-async fn new_video(session: Session) -> Result<impl Responder, Error> {
+async fn new_video(session: Session) -> actix_web::Result<impl Responder> {
     validate_session(&session)?; // will return error if the user isnt authenticated
-    
+
     Ok(
         HttpResponse::Ok().body("Hello World!")
     )}
 
 #[get("/")]
-async fn index(session: Session) -> Result<impl Responder, Error> {
+async fn index(session: Session) -> actix_web::Result<impl Responder> {
     validate_session(&session)?; // will return error if the user isnt authenticated
     Ok(
         HttpResponse::Ok().body("Hello World!")
@@ -62,7 +62,7 @@ async fn actix_web(
                     CookieSessionStore::default(),
                     secret_key.clone(),
                     ).cookie_content_security(CookieContentSecurity::Private)
-                    .session_lifecycle(PersistentSession::default().session_ttl(Duration::minutes(5)))
+                    .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(1)))
                     .cookie_name("authenticated".to_owned()).build()
                 )
                 // on login form submit

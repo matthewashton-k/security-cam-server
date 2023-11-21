@@ -4,13 +4,14 @@ use actix_web::HttpResponse;
 
 /// Validates the session and returns the user id if valid.
 /// taken f
-pub fn validate_session(session: &Session) -> Result<(), actix_web::error::Error> {
+pub fn validate_session(session: &Session) -> actix_web::Result<(),actix_web::error::Error> {
     if session.get::<bool>("authenticated").unwrap().is_none() {
-        return Err(InternalError::from_response("", HttpResponse::Unauthorized().finish()).into());
+        return Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
     }
     if !(session.get::<bool>("authenticated").unwrap().unwrap()) {
-        return Err(InternalError::from_response("", HttpResponse::Unauthorized().finish()).into());
+        // return Err(InternalError::from_response("", HttpResponse::Unauthorized().finish()).into());
+        return Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
     } else {
-        Ok(())
+        return Ok(());
     }
 }
