@@ -11,3 +11,9 @@ shuttle-runtime = "0.27.0"
 actix-web = "4.4.0"
 shuttle-actix-web = "0.27.0"
 tokio = "1.32.0"
+serde = { version="1.0.192"}
+anyhow = "1.0.75"
+thiserror = "1.0.50"
+actix-session = { version = "0.8.0", features = ["cookie-session"] }
+toml = "0.8.8"
+log = "0.4.20"
