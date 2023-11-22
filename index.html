@@ -6,6 +6,10 @@
         </title>
     </head>
     <body>
+        {{#each files as |f|}}
+            <a href={{f}}>{{f}}</a>
+        {{/each}}
+        <br>
         <button><a href="/logout">Logout</a></button>
     </body>
 </html>

@@ -1,6 +1,18 @@
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
+pub async fn get_video_paths() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut paths = Vec::new();
+    for entry in std::fs::read_dir("assets")? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() && path.extension().unwrap() == "mp4" {
+            paths.push(path.to_str().unwrap().to_string());
+        }
+    }
+    Ok(paths)
+}
+
 pub async fn save_video(data: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
     validate_magic_string(data)?;
     let path = format!("assets/video-{}",chrono::Local::now());

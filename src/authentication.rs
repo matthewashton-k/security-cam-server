@@ -26,7 +26,7 @@ impl AdminSessionInfo {
 
 /// Validates the session and returns the user id if valid.
 /// taken f
-pub fn validate_session(session: &Session, admin_session_info: &AdminSessionInfo) -> actix_web::Result<(),actix_web::error::Error> {
+pub async fn validate_session(session: &Session, admin_session_info: &AdminSessionInfo) -> actix_web::Result<(),actix_web::error::Error> {
     return match session.get::<String>("session_id") {
         Ok(Some(hash)) => {
             // the hash of the authenticated user

@@ -1,8 +1,9 @@
 mod authentication;
 
 use std::io::Bytes;
-use actix_web::{get, HttpResponse, post, Responder, ResponseError, web, web::ServiceConfig};
-use actix_web::http::header::{ContentType, LOCATION};
+use std::path::PathBuf;
+use actix_web::{get, HttpRequest, HttpResponse, post, Responder, ResponseError, web, web::ServiceConfig};
+use actix_web::http::header::{ContentDisposition, ContentType, DispositionType, LOCATION};
 use shuttle_actix_web::ShuttleActixWeb;
 use actix_web::{cookie::Key, App, HttpServer, Error};
 use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
@@ -10,27 +11,47 @@ use actix_session::config::{CookieContentSecurity, PersistentSession, SessionMid
 use actix_web::cookie::time::Duration;
 use actix_web::error::ErrorInternalServerError;
 use actix_web::web::to;
+use handlebars::Handlebars;
 use log::{info, log};
+use serde_json::json;
 use shuttle_secrets::SecretStore;
+use tokio::fs;
 use security_cam_viewer::authentication::verify_hash;
-use security_cam_viewer::video::save_video;
+use security_cam_viewer::video::{get_video_paths, save_video};
 use uuid::uuid;
 use crate::authentication::{AdminSessionInfo, create_hash, validate_session};
+pub type AppState<'a> = (AdminSessionInfo,Handlebars<'a>);
+
+
 
 #[post("/new_video")]
-async fn new_video(data: web::Data<AdminSessionInfo>, session: Session, bytes: web::Bytes) -> actix_web::Result<impl Responder> {
-    validate_session(&session,&data)?; // will return error if the user isnt authenticated
+async fn new_video(data: web::Data<AppState<'_>>, session: Session, bytes: web::Bytes) -> actix_web::Result<impl Responder> {
+    validate_session(&session,&data.0).await?; // will return error if the user isnt authenticated
     save_video(&bytes).await?;
     Ok(
         HttpResponse::Ok().body("SUCCESS")
     )
 }
 
+#[get("/assets/{filename}")]
+async fn assets(req: HttpRequest,data: web::Data<AppState<'_>>, session: Session, filename: web::Path<String>) -> actix_web::Result<impl Responder> {
+    validate_session(&session,&data.0).await?; // will return error if the user isnt authenticated
+    let path: std::path::PathBuf = req.match_info().query("filename").parse::<PathBuf>().unwrap().canonicalize()?;
+    let file = actix_files::NamedFile::open(PathBuf::from("assets").join(&path))?;
+    info!("the path: {}",PathBuf::from("assets").join(&path).to_str().unwrap());
+    Ok(file)
+}
+
 #[get("/")]
-async fn index(data: web::Data<AdminSessionInfo>, session: Session) -> actix_web::Result<impl Responder> {
-    validate_session(&session,&data)?; // will return error if the user isnt authenticated
+async fn index(data: web::Data<AppState<'_>>, session: Session) -> actix_web::Result<impl Responder> {
+    validate_session(&session,&data.0).await?; // will return error if the user isnt authenticated
+    let video_paths = get_video_paths().await?;
+    let video_paths_json = json!({"files" : video_paths});
+    info!("{}",video_paths_json);
+    let body = data.1.render("index",&video_paths_json).unwrap();
+    info!("{}",body);
     Ok(
-        HttpResponse::Ok().body(include_str!("../index.html"))
+        HttpResponse::Ok().body(data.1.render("index",&video_paths_json).unwrap())
     )
 }
 #[get("/login")]
@@ -44,13 +65,12 @@ pub async fn logout(session: Session) -> impl Responder {
     session.remove("session_id").unwrap();
     HttpResponse::SeeOther().insert_header((LOCATION,"/login")).finish()
 }
+
 #[shuttle_runtime::main]
 async fn actix_web(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     let config = move |cfg: &mut ServiceConfig| {
-        //(user,pass)
-        // session_id hash creation
 
         let admin_user = secret_store.get("ADMIN_USER").expect("no ADMIN_USER in Secrets.toml");
         let admin_pass = secret_store.get("ADMIN_PASS").expect("no ADMIN_PASS in Secrets.toml");
@@ -60,15 +80,22 @@ async fn actix_web(
             &admin_pass,
         ).expect("failed to create hash for admin credentials");
 
+        // admin session info
         let admin_session_info = AdminSessionInfo::new(admin_user,admin_pass);
-        cfg.app_data(web::Data::new(admin_session_info));
-        cfg.default_service(web::to(|| HttpResponse::NotFound()));
+
+        // create static site builder
+        let mut hbars = Handlebars::new();
+        hbars.register_template_file("index","index.html").unwrap();
+        cfg.app_data(web::Data::new((admin_session_info, hbars)));
         cfg.service(
             web::scope("")
                 .service(index)
                 .service(login_form)
                 .service(logout)
-                // cookie middleware
+                .service(new_video)
+                .service(assets)
+                .route("/login",web::post().to(login))
+        // cookie middleware
                 .wrap(SessionMiddleware::builder(
                     CookieSessionStore::default(),
                     Key::from(secret_store.get("KEY").unwrap().as_bytes().clone()),
@@ -76,8 +103,7 @@ async fn actix_web(
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(1)))
                           .build()// .cookie_name("authenticated".to_owned()).build()
                 )
-                // on login form submit
-                .route("/login",web::post().to(login))
+                .default_service(web::to(|| HttpResponse::NotFound()))
         );
 
     };
@@ -94,8 +120,8 @@ pub struct LoginForm {
 
 /// data is (user,pass)
 /// updates session if the user and pass in the form match data
-pub async fn login(session: Session,data: web::Data<AdminSessionInfo>, form: web::Form<LoginForm>) -> actix_web::Result<impl Responder> {
-    if verify_hash(&form.username, &form.password, &data.hash)? {
+pub async fn login(session: Session,data: web::Data<AppState<'_>>, form: web::Form<LoginForm>) -> actix_web::Result<impl Responder> {
+    if verify_hash(&form.username, &form.password, &data.0.hash)? {
         log::info!("verified hash");
         session.insert("session_id", create_hash(&form.username,&form.password)?)?;
         return Ok(HttpResponse::SeeOther()
