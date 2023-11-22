@@ -8,12 +8,11 @@ use actix_web::{cookie::Key, App, HttpServer, Error};
 use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
 use actix_session::config::{CookieContentSecurity, PersistentSession, SessionMiddlewareBuilder};
 use actix_web::cookie::time::Duration;
-use actix_web::http::StatusCode;
-use actix_web::middleware::{ErrorHandlerResponse, ErrorHandlers};
 use log::log;
 use security_cam_viewer::errors;
+use shuttle_secrets::SecretStore;
+use shuttle_secrets::Secrets;
 use crate::authentication::validate_session;
-
 
 #[post("/new_video")]
 async fn new_video(session: Session) -> actix_web::Result<impl Responder> {
@@ -38,29 +37,21 @@ pub async fn login_form() -> impl Responder {
 }
 #[shuttle_runtime::main]
 async fn actix_web(
+    #[shuttle_secrets::Secrets] secret_store: SecretStore,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
-    let key_map: HashMap<String,String> = toml::from_str(include_str!("../Secrets.toml")).unwrap();
-    let secret_key = Key::from(key_map.get("KEY").expect("KEY not found in Secrets.toml").as_bytes());
-
-    // (user,pass)
-    let admin_creds = (key_map.get("ADMIN_USER").expect("ADMIN_USER not found in Secrets.toml").to_string(),key_map.get("ADMIN_PASS").expect("ADMIN_PASS not found in Secrets.toml").to_string());
     let config = move |cfg: &mut ServiceConfig| {
         //(user,pass)
-        cfg.app_data(web::Data::new(admin_creds));
+        cfg.app_data(web::Data::new((secret_store.get("ADMIN_USER").expect("no ADMIN_USER in Secrets.toml"), secret_store.get("ADMIN_PASS").expect("no ADMIN_PASS in Secrets.toml"))));
 
         cfg.service(
             web::scope("")
                 .service(index)
                 .service(login_form)
+                .default_service(web::to(HttpResponse::NotFound))
                 // cookie middleware
-                .wrap(
-                    ErrorHandlers::new()
-                        .default_handler_client(errors::add_error_header)
-                        .handler(StatusCode::NOT_FOUND, errors::handle_404)
-                )
                 .wrap(SessionMiddleware::builder(
                     CookieSessionStore::default(),
-                    secret_key.clone(),
+                    Key::from(secret_store.get("KEY").unwrap().as_bytes().clone()),
                     ).cookie_content_security(CookieContentSecurity::Private)
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(1)))
                     .cookie_name("authenticated".to_owned()).build()
