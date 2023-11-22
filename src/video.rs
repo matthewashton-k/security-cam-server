@@ -3,12 +3,11 @@ use tokio::io::AsyncWriteExt;
 
 pub async fn save_video(data: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
     validate_magic_string(data)?;
-    let path = format!("assets/{}",chrono::Local::now());
+    let path = format!("assets/video-{}",chrono::Local::now());
     let mut file = File::create(&path).await?;
     file.write_all(data).await?;
     Ok(path)
 }
-
 
 fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     let magic_strings = [b"ftypisom", b"ftypMSNV"];
@@ -25,7 +24,6 @@ fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> 
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     use super::*;
     use tokio::io::AsyncReadExt;
     #[tokio::test]

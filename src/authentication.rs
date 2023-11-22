@@ -65,3 +65,25 @@ pub fn verify_hash(username: &str, password: &str, hash: &str) -> Result<bool, B
         ).is_ok()
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_hash_and_verify() {
+        let username = "test_user";
+        let password = "test_password";
+
+        // Test create_hash function
+        let hash = create_hash(username, password).unwrap();
+        assert!(!hash.is_empty(), "Hash should not be empty");
+
+        // Test verify_hash function
+        let is_valid = verify_hash(username, password, &hash).unwrap();
+        assert!(is_valid, "Hash should be valid for the given username and password");
+
+        // Test verify_hash function with wrong password
+        let is_valid = verify_hash(username, "wrong_password", &hash).unwrap();
+        assert!(!is_valid, "Hash should be invalid for the wrong password");
+    }
+}
