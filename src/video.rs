@@ -1,6 +1,7 @@
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+use shuttle_runtime::tokio::fs::File;
+use shuttle_runtime::tokio::io::AsyncWriteExt;
 
+/// returns a list of all the saved mp4 files in security-cam-viewer/assets
 pub async fn get_video_paths() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut paths = Vec::new();
     for entry in std::fs::read_dir("assets")? {
@@ -13,6 +14,7 @@ pub async fn get_video_paths() -> Result<Vec<String>, Box<dyn std::error::Error>
     Ok(paths)
 }
 
+/// saves a video to security-cam-viewer/assets/video-<timestamp> and returns the path to the video
 pub async fn save_video(data: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
     validate_magic_string(data)?;
     let path = format!("assets/video-{}",chrono::Local::now());
@@ -21,6 +23,7 @@ pub async fn save_video(data: &[u8]) -> Result<String, Box<dyn std::error::Error
     Ok(path)
 }
 
+/// validates that the data is a valid video file
 fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     let magic_strings = [b"ftypisom", b"ftypMSNV"];
     if data.len() < 12 {
@@ -36,6 +39,7 @@ fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> 
 
 #[cfg(test)]
 mod tests {
+    use shuttle_runtime::tokio;
     use super::*;
     use tokio::io::AsyncReadExt;
     #[tokio::test]

@@ -6,10 +6,24 @@
         </title>
     </head>
     <body>
+        <input type="password" name="password" id="password" placeholder="admin decryption password">
+        <br>
         {{#each files as |f|}}
-            <a href={{f}}>{{f}}</a>
+            <a class="links" >{{f}}</a>
         {{/each}}
         <br>
         <button><a href="/logout">Logout</a></button>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function(){
+                document.getElementById('password').addEventListener('keyup', function(e){
+                    e.preventDefault();
+                    var links = document.getElementsByClassName('links');
+                    for (const link of links) {
+                        link.href = link.innerText+"/"+document.getElementById('password').value;
+                    }
+                });
+            });
+        </script>
     </body>
 </html>
