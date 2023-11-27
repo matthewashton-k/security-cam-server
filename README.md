@@ -17,9 +17,9 @@ DISCLAIMER: this tool has not been audited, use at your own risk
 * When decrypting a file, it is expected that the salt should be the first 22 bytes of the file
 
 ## Usage
-Note: This server is meant to be for a future motion detection security camera project.
-Note: the motion camera should authenticate, and send encrypted videos of when motion was captured to POST /new_video
-**SERVER SETUP**:
+Note: This server is meant to be for a future motion detection security camera project.\
+Note: the motion camera should authenticate, and send encrypted videos of when motion was captured to POST /new_video\
+**SERVER SETUP**:\
 * install shuttle, instructions on shuttle.rs
 * clone repo
 * use ```cargo run --example generate_password_hash <user> <pass>``` to generate an argon2 hash that will be used for authentication
@@ -33,15 +33,15 @@ ADMIN_HASH = "<argon2 hash>"
 * run locally with ```cargo shuttle run``` or deploy with ```cargo shuttle deploy```
 
 **ROUTES**
-GET /login
-POST /new_video
-GET /assets/video.mp4/password (click on a link shown in the index page)
-GET /logout 
-GET / (shows all the videos stored on the server)
+GET /login\
+POST /new_video\
+GET /assets/video.mp4/password (click on a link shown in the index page)\
+GET /logout \
+GET / (shows all the videos stored on the server)\
 
-*I included a test encrypted mp4 (and its decrypted counterpart) in /assets encrypted with the password "pass" so feel free to test out the capabilities of the server using that if you don't want to bother with encrypting files your self since I have not written the client yet*
+*I included a test encrypted mp4 (and its decrypted counterpart) in /assets encrypted with the password "pass" so feel free to test out the capabilities of the server using that if you don't want to bother with encrypting files your self since I have not written the client yet*\
 
-TODOS:
+TODOS:\
 1. make the website look nice
 2. make a route for deleting files, or auto-deleting files after a certain amount of time
 
