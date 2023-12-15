@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use actix_web::web::{Bytes, BytesMut};
@@ -9,13 +10,14 @@ use argon2::Argon2;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use async_stream::stream;
+use base64::{DecodeError, Engine, engine};
 use futures_core::Stream;
 use shuttle_runtime::tokio;
 use shuttle_runtime::tokio::io::AsyncReadExt;
 
 
 const BUFFER_LEN: usize = 500;
-
+const NONCE_LEN: usize = 16;
 pub struct EncryptDecrypt {
     pub key: Option<Key<Aes256Gcm>>,
     pub salt: Option<SaltString>,
@@ -29,7 +31,7 @@ impl EncryptDecrypt {
         let s = stream! {
             // read in the salt
             let mut buffer = [0u8; BUFFER_LEN+16];
-            let mut salt = [0u8; 22];
+            let mut salt = [0u8; NONCE_LEN];
             self.file.read_exact(&mut salt).await?;
             let salt = salt.to_vec();
 
@@ -68,21 +70,20 @@ impl EncryptDecrypt {
     /// only the first 7 of those bytes need to be used for the AESGCM cypher's salt but all 12 should be used to generate the key stream
     pub fn encrypt_stream(mut self) -> impl Stream<Item=Result<Vec<u8> , Box<dyn std::error::Error + 'static>>> {
         let s = stream! {
-            if self.key.is_none() || self.salt.is_none() {
-                yield Err("no key or nonce".into()); // yeilding an error will stop
+            if self.key.is_none() || self.salt.is_none() { // if no nonce is found
+                yield Err("nonce not found".into()); // yeilding an error will stop stream
             }
+            let b64_decoder = base64::engine::general_purpose::STANDARD_NO_PAD;
+            let nonce = b64_decoder.decode(self.salt.unwrap().as_str())?;
+
             let mut buffer = [0u8; BUFFER_LEN];
-            println!("started");
 
-
-            let salt = self.salt.clone().unwrap().to_string().as_bytes().to_vec();
             let mut encryptor = stream::EncryptorBE32::from_aead(
                 Aes256Gcm::new(&self.key.unwrap()),
-                (&salt[0..7]).into()
+                nonce[0..7].into()
             );
-            println!("enc:{:?}{:?}",&self.key.unwrap(),&salt);
             let mut last_chunk = Vec::new();
-            yield Ok(salt.to_vec());
+            yield Ok(nonce);
             loop {
                 let read_count = self.file.read(&mut buffer).await?;
                 if read_count == BUFFER_LEN {
@@ -110,7 +111,9 @@ impl EncryptDecrypt {
 pub fn generate_key(password: &str) -> Result<(Key<Aes256Gcm>,SaltString), Box<dyn std::error::Error>> {
     let mut key_out = [0u8; 32];
     let salt = SaltString::generate(&mut OsRng);
-    Argon2::default().hash_password_into(password.as_bytes(), salt.as_str().as_bytes(), &mut key_out).map_err(|e|e.to_string())?;
+    let b64_decoder = engine::general_purpose::STANDARD_NO_PAD;
+    let salt_bytes = b64_decoder.decode(salt.as_str())?;
+    Argon2::default().hash_password_into(password.as_bytes(), &salt_bytes, &mut key_out).map_err(|e|e.to_string())?;
     Ok((key_out.into(),salt ))
 }
 
