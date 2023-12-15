@@ -1,38 +1,38 @@
 mod authentication;
 
-use std::io::Bytes;
+
 use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::Arc;
+
+
 use actix_identity::IdentityMiddleware;
-use actix_web::{get, HttpMessage, HttpRequest, HttpResponse, post, Responder, ResponseError, web, web::ServiceConfig};
-use actix_web::http::header::{CONNECTION, CONTENT_DISPOSITION, ContentDisposition, ContentType, DispositionType, LOCATION, TRANSFER_ENCODING};
+use actix_web::{get, HttpMessage, HttpRequest, HttpResponse, post, Responder, web, web::ServiceConfig};
+use actix_web::http::header::{ContentType, LOCATION};
 use shuttle_actix_web::ShuttleActixWeb;
-use actix_web::{cookie::Key, App, HttpServer, Error};
+use actix_web::{cookie::Key};
 use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
-use actix_session::config::{CookieContentSecurity, PersistentSession, SessionMiddlewareBuilder};
+use actix_session::config::{CookieContentSecurity, PersistentSession};
 use actix_web::cookie::time::Duration;
 use actix_identity::Identity;
-use actix_web::body::BodyStream;
+
 use handlebars::Handlebars;
-use log::{info, log};
+use log::{info};
 use serde_json::json;
-use shuttle_runtime::tokio;
+
 use shuttle_runtime::tokio::fs::File;
-use shuttle_runtime::tokio::sync::Mutex;
+
 use shuttle_secrets::SecretStore;
 use security_cam_viewer::authentication::{verify_hash};
-use security_cam_viewer::video::{append_chunk_to_file, get_video_paths, make_new_video_file, validate_magic_string};
+use security_cam_viewer::video::{append_chunk_to_file, get_video_paths, make_new_video_file};
 use crate::authentication::{AdminSessionInfo};
 use security_cam_viewer::encryption::*;
-use actix_web::http::header::CONTENT_LENGTH;
+
 use tokio_stream::StreamExt;
 
 pub type AppState<'a> = (AdminSessionInfo, Handlebars<'a>);
 
 /// data is (user,pass)
 /// updates session if the user and pass in the form match data
-pub async fn login(session: Session,data: web::Data<AppState<'_>>, form: web::Form<LoginForm>,request: HttpRequest) -> actix_web::Result<impl Responder> {
+pub async fn login(_session: Session,data: web::Data<AppState<'_>>, form: web::Form<LoginForm>,request: HttpRequest) -> actix_web::Result<impl Responder> {
     if verify_hash(&form.username, &form.password, &data.0.hash)? {
         log::info!("verified hash");
         Identity::login(&request.extensions(),form.username.clone())?; // log the user in
@@ -63,7 +63,7 @@ pub async fn logout(user: Identity) -> impl Responder {
 
 #[post("/new_video/")]
 async fn new_video(mut file_bytes_chunks: web::Payload, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
-    if let Some(identity) = identity { // if the user is logged in
+    if let Some(_identity) = identity { // if the user is logged in
         let mut file_handle = make_new_video_file().await?;
         while let Some(Ok(chunk)) = file_bytes_chunks.next().await {
             append_chunk_to_file(&chunk, &mut file_handle).await?;
@@ -78,20 +78,20 @@ async fn new_video(mut file_bytes_chunks: web::Payload, identity: Option<Identit
 
 #[get("/assets/{filename}/{password}")]
 async fn assets(
-    data: web::Data<AppState<'_>>,
-    session: Session,
+    _data: web::Data<AppState<'_>>,
+    _session: Session,
     path: web::Path<(String,String)>,
-    identity: Option<Identity>) -> actix_web::Result<impl Responder> {
+    _identity: Option<Identity>) -> actix_web::Result<impl Responder> {
     let (filename,password) = path.into_inner();
     info!("the password is: {}",password);
-    if let Some(identity) = Some(1) {
+    if let Some(_identity) = Some(1) {
         info!("the identity was found");
         // let plaintext = decrypt_bytes(&key, salt, &tokio::fs::read(PathBuf::from("assets").join(&path)).await?)?; // decrypt the file?;
         let file = File::open(PathBuf::from("assets").join(&filename)).await?;
-        let mut decryptor = EncryptDecrypt {
+        let decryptor = EncryptDecrypt {
             key:None,
             salt:None,
-            file: file,
+            file,
         };
         info!("returning stream");
         //Ok::<_, Box<dyn std::error::Error>>(
@@ -107,8 +107,8 @@ async fn assets(
 }
 
 #[get("/")]
-async fn index(data: web::Data<AppState<'_>>, session: Session, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
-    if let Some(identity) = identity {
+async fn index(data: web::Data<AppState<'_>>, _session: Session, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
+    if let Some(_identity) = identity {
         let video_paths = get_video_paths().await?;
         let video_paths_json = json!({"files" : video_paths});
         info!("{}",video_paths_json);
@@ -130,7 +130,7 @@ async fn actix_web(
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     let admin_hash = secret_store.get("ADMIN_HASH").expect("ADMIN_HASH not found");
     let admin_user = secret_store.get("ADMIN_USER").expect("ADMIN_USER not found");
-    let key = Key::from(secret_store.get("KEY").unwrap().as_bytes().clone());
+    let key = Key::from(secret_store.get("KEY").unwrap().as_bytes());
     let config = move |cfg: &mut ServiceConfig| {
         // create static site builder
 
@@ -154,7 +154,7 @@ async fn actix_web(
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::days(1)))
                           .build()
                 )
-                .default_service(web::to(|| HttpResponse::NotFound()))
+                .default_service(web::to(HttpResponse::NotFound))
         );
 
     };
@@ -208,7 +208,7 @@ mod tests {
     use actix_web::cookie::Key;
     use actix_web::web::ServiceConfig;
     use handlebars::Handlebars;
-    use actix_web::web::Data;
+    
     use actix_web::web;
     use crate::AdminSessionInfo;
     use actix_identity::IdentityMiddleware;
@@ -249,7 +249,7 @@ mod tests {
                         .session_lifecycle(PersistentSession::default().session_ttl(Duration::days(1)))
                         .build()
                     )
-                    .default_service(web::to(|| HttpResponse::NotFound()))
+                    .default_service(web::to(HttpResponse::NotFound))
             );
 
         };

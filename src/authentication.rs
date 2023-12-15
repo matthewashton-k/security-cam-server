@@ -2,8 +2,7 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use aes_gcm::{
-    aead::{Aead, AeadCore, KeyInit},
-    Aes256Gcm, Nonce, Key // Or `Aes128Gcm`
+    aead::{KeyInit} // Or `Aes128Gcm`
 };
 const BUFFER_LEN: usize = 500;
 /// passed to app_data and used by the login function to verify login attempts
@@ -69,7 +68,7 @@ pub fn verify_hash(username: &str, password: &str, hash: &str) -> Result<bool, B
 
 #[cfg(test)]
 mod tests {
-    use argon2::password_hash::rand_core::RngCore;
+    
     use super::*;
     #[test]
     fn test_hash_and_verify() {

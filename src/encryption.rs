@@ -1,16 +1,16 @@
-use std::io::{Error, ErrorKind};
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use actix_web::web::{Bytes, BytesMut};
+
+
+
+use actix_web::web::{Bytes};
 use aes_gcm::aead::stream;
 use aes_gcm::aead::{Key, KeyInit};
-use aes_gcm::aead::Aead;
+
 use aes_gcm::Aes256Gcm;
 use argon2::Argon2;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use async_stream::stream;
-use base64::{DecodeError, Engine, engine};
+use base64::{Engine, engine};
 use futures_core::Stream;
 use shuttle_runtime::tokio;
 use shuttle_runtime::tokio::io::AsyncReadExt;
@@ -46,7 +46,7 @@ impl EncryptDecrypt {
             loop {
                 let read_count = self.file.read(&mut buffer).await?;
                 if read_count == BUFFER_LEN+16 {
-                    let decrypted: Result<Vec<u8>, Box<dyn std::error::Error>> = (&mut decryptor).decrypt_next(&buffer[..]).map_err(|e|
+                    let decrypted: Result<Vec<u8>, Box<dyn std::error::Error>> = decryptor.decrypt_next(&buffer[..]).map_err(|e|
                         {
                             println!("got an error: {:?}",e);
                             e.to_string().into()
@@ -87,7 +87,7 @@ impl EncryptDecrypt {
             loop {
                 let read_count = self.file.read(&mut buffer).await?;
                 if read_count == BUFFER_LEN {
-                    let encrypted = (&mut encryptor).encrypt_next(&buffer[..]).map_err(|e| e.to_string().into());
+                    let encrypted = encryptor.encrypt_next(&buffer[..]).map_err(|e| e.to_string().into());
                     yield encrypted;
                 } else if read_count == 0 {
                     break;
@@ -144,8 +144,8 @@ mod tests {
     use super::*;
     use tokio::io::AsyncWriteExt;
     use tokio_stream::StreamExt;
-    use actix_web::rt::pin;
-    use futures_core::Stream;
+    
+    
     use std::fs::remove_file;
 
 
@@ -160,7 +160,7 @@ mod tests {
         tmp_file.write_all(test_data.as_bytes()).await?;
 
         let file = tokio::fs::File::open(tmp_file_path).await?;
-        let decryptor = EncryptDecrypt { key: Some(key.clone()), salt: Some(salt.clone()), file };
+        let decryptor = EncryptDecrypt { key: Some(key), salt: Some(salt.clone()), file };
         let mut encrypted_stream = Box::pin(decryptor.encrypt_stream());
 
         let tmp_file_path2 = "/var/tmp/test_file2.txt";
@@ -196,7 +196,7 @@ mod tests {
         let (key, salt) = generate_key(password)?;
         println!("encryptedfile:{key:?}{:?}",&salt.to_string().as_bytes());
         let file = tokio::fs::File::open("assets/test-2023-11-21_17.58.46.mp4").await?;
-        let decryptor = EncryptDecrypt { key: Some(key.clone()), salt: Some(salt.clone()), file };
+        let decryptor = EncryptDecrypt { key: Some(key), salt: Some(salt.clone()), file };
         let mut encrypted_stream = Box::pin(decryptor.encrypt_stream());
 
         let tmp_file_path2 = "assets/test-enc2-2023-11-21_17.58.46.mp4";

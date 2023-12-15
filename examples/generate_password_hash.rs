@@ -1,5 +1,5 @@
-use argon2::Argon2;
-use argon2::password_hash::SaltString;
+
+
 use security_cam_viewer::authentication::create_hash;
 
 fn main() {
