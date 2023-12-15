@@ -82,8 +82,8 @@ impl EncryptDecrypt {
                 Aes256Gcm::new(&self.key.unwrap()),
                 nonce[0..7].into()
             );
-            let mut last_chunk = Vec::new();
-            yield Ok(nonce);
+            let mut last_chunk = Vec::new(); // stores the last file chunk that may be less than len BUFFER_LEN
+            yield Ok(nonce); // nonce will be appended to the beginning of the file
             loop {
                 let read_count = self.file.read(&mut buffer).await?;
                 if read_count == BUFFER_LEN {
@@ -100,7 +100,7 @@ impl EncryptDecrypt {
                 .map_err(|e| e.to_string().into());
             yield encrypted;
         };
-        s
+        s // return the stream
     }
 
 }
@@ -117,7 +117,7 @@ pub fn generate_key(password: &str) -> Result<(Key<Aes256Gcm>,SaltString), Box<d
     Ok((key_out.into(),salt ))
 }
 
-/// salt must be [0..7] in length
+/// salt should be made by base64 decoding a SaltString
 pub fn generate_keystream(password:&str,salt: &[u8]) -> Result<Key<Aes256Gcm>, Box<dyn std::error::Error>> {
     let mut key_out = [0u8; 32];
     Argon2::default().hash_password_into(password.as_bytes(), salt, &mut key_out).map_err(|e|e.to_string())?;

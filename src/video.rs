@@ -1,4 +1,4 @@
-use shuttle_runtime::tokio::fs::File;
+use shuttle_runtime::tokio::fs::{File, OpenOptions};
 use shuttle_runtime::tokio::io::AsyncWriteExt;
 
 /// returns a list of all the saved mp4 files in security-cam-viewer/assets
@@ -14,17 +14,19 @@ pub async fn get_video_paths() -> Result<Vec<String>, Box<dyn std::error::Error>
     Ok(paths)
 }
 
-/// saves a video to security-cam-viewer/assets/video-<timestamp> and returns the path to the video
-pub async fn save_video(data: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
-    validate_magic_string(data)?;
+pub async fn append_chunk_to_file(chunk: &[u8],file_handle: &mut File) -> Result<(), Box<dyn std::error::Error>> {
+    file_handle.write_all(chunk).await?;
+    Ok(())
+}
+
+pub async fn make_new_video_file() -> Result<File, Box<dyn std::error::Error>> {
     let path = format!("assets/video-{}",chrono::Local::now());
-    let mut file = File::create(&path).await?;
-    file.write_all(data).await?;
-    Ok(path)
+    let mut file = OpenOptions::new().read(true).write(true).create(true).append(true).open(path).await?;
+    return Ok(file);
 }
 
 /// validates that the data is a valid video file
-fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+pub fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     let magic_strings = [b"ftypisom", b"ftypMSNV"];
     if data.len() < 12 {
         return Err("Invalid video".into());
@@ -40,6 +42,7 @@ fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> 
 #[cfg(test)]
 mod tests {
     use shuttle_runtime::tokio;
+    use shuttle_runtime::tokio::fs::OpenOptions;
     use super::*;
     use tokio::io::AsyncReadExt;
     #[tokio::test]
@@ -52,17 +55,23 @@ mod tests {
     }
     #[tokio::test]
     async fn test_save_video() -> Result<(), Box<dyn std::error::Error>> {
+        tokio::fs::remove_file("test.mp4").await;
+
         let mut file = File::open("assets/test-2023-11-21_17.58.46.mp4").await?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
+        let mut file_handle = OpenOptions::new().read(true).write(true).create(true).append(true).open("test.mp4").await?;
+        for chunk in buffer.chunks(50) {
+            append_chunk_to_file(chunk, &mut file_handle).await?;
+        }
 
-        let path = save_video(&buffer).await;
-        assert!(&path.is_ok());
-        let mut file = File::open(path.as_ref().unwrap()).await?;
         let mut new_buffer = Vec::new();
-        file.read_to_end(&mut new_buffer).await?;
-        assert_eq!(buffer, new_buffer);
-        tokio::fs::remove_file(&path.unwrap()).await?;
+        File::open("test.mp4").await?.read_to_end(&mut new_buffer).await?;
+        assert_eq!(buffer.len(),new_buffer.len());
+        for (byte, expected_byte) in new_buffer.iter().zip(buffer) {
+            assert_eq!(*byte,expected_byte);
+        }
+        tokio::fs::remove_file("test.mp4").await?;
         Ok(())
     }
 }

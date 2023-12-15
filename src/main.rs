@@ -22,10 +22,12 @@ use shuttle_runtime::tokio::fs::File;
 use shuttle_runtime::tokio::sync::Mutex;
 use shuttle_secrets::SecretStore;
 use security_cam_viewer::authentication::{verify_hash};
-use security_cam_viewer::video::{get_video_paths, save_video};
+use security_cam_viewer::video::{append_chunk_to_file, get_video_paths, make_new_video_file, validate_magic_string};
 use crate::authentication::{AdminSessionInfo};
 use security_cam_viewer::encryption::*;
 use actix_web::http::header::CONTENT_LENGTH;
+use tokio_stream::StreamExt;
+
 pub type AppState<'a> = (AdminSessionInfo, Handlebars<'a>);
 
 /// data is (user,pass)
@@ -60,9 +62,12 @@ pub async fn logout(user: Identity) -> impl Responder {
 
 
 #[post("/new_video/")]
-async fn new_video(bytes: web::Bytes, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
+async fn new_video(mut file_bytes_chunks: web::Payload, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
     if let Some(identity) = identity { // if the user is logged in
-        save_video(&bytes).await?;
+        let mut file_handle = make_new_video_file().await?;
+        while let Some(Ok(chunk)) = file_bytes_chunks.next().await {
+            append_chunk_to_file(&chunk, &mut file_handle).await?;
+        }
         Ok(
             HttpResponse::Ok().body("SUCCESS")
         )
