@@ -13,7 +13,8 @@ DISCLAIMER: this tool has not been audited, use at your own risk
 * after hash validation, actix-identity middleware is used to generate a uuid and store it in a cookie that is associated with the logged in user
 * A key is stored in Secrets.toml and used to encrypt the session cookie
 * cookies expire after some time
-* files sent to the server by a client should be encrypted using the key generation functions in encryption.rs. There is one function for generating a random key and salt pair, and another function that takes in a salt string, and a password, and uses Argon2 to derive a 32 byte key from it.
+* files sent to the server by a client should be encrypted using the key generation functions in the security-cam-common crate (authored by me). There is one function for generating a random key and salt pair, and another function that takes in a salt string, and a password, and uses Argon2 to derive a 32 byte key from it.
+* decrypted mp4s should never touch the file disk, as all files are decrypted and send in chunks to the user.
 * When decrypting a file, it is expected that the salt should be the first 22 bytes of the file
 
 ## Usage
@@ -21,7 +22,7 @@ Note: This server is meant to be for a future motion detection security camera p
 Note: the motion camera should authenticate, and send encrypted videos of when motion was captured to POST /new_video\
 **SERVER SETUP**:
 * install shuttle, instructions on shuttle.rs
-* clone repo
+* clone this repo
 * use ```cargo run --example generate_password_hash <user> <pass>``` to generate an argon2 hash that will be used for authentication
 * use ```openssl rand -base64 64``` to generate a key to be used for encrypting session id cookies
 * in the crate root create a file called Secrets.toml with this format:
