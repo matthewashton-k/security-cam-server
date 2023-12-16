@@ -2522,9 +2522,7 @@ dependencies = [
 
 [[package]]
 name = "security-cam-common"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57bec659366b05bbdc37707699e9667c7e6bf185a4d9eaf4f9fba08064b53023"
+version = "0.1.2"
 dependencies = [
  "actix-web",
  "aes-gcm",

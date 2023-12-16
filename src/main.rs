@@ -15,7 +15,7 @@ use actix_web::cookie::time::Duration;
 use actix_identity::Identity;
 
 use handlebars::Handlebars;
-use log::{info};
+use log::{info, warn};
 use serde_json::json;
 
 use shuttle_runtime::tokio::fs::File;
@@ -61,17 +61,19 @@ pub async fn logout(user: Identity) -> impl Responder {
 }
 
 
-#[post("/new_video/")]
-async fn new_video(mut file_bytes_chunks: web::Payload, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
+#[post("/new_video")]
+async fn new_video(mut body: web::Payload, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
+    info!("saving new video");
     if let Some(_identity) = identity { // if the user is logged in
         let mut file_handle = make_new_video_file().await?;
-        while let Some(Ok(chunk)) = file_bytes_chunks.next().await {
+        while let Some(Ok(chunk)) = body.next().await {
             append_chunk_to_file(&chunk, &mut file_handle).await?;
         }
         Ok(
             HttpResponse::Ok().body("SUCCESS")
         )
     } else {
+        warn!("unauthorized");
         Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
     }
 }

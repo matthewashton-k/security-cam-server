@@ -20,7 +20,7 @@ pub async fn append_chunk_to_file(chunk: &[u8],file_handle: &mut File) -> Result
 }
 
 pub async fn make_new_video_file() -> Result<File, Box<dyn std::error::Error>> {
-    let path = format!("assets/video-{}",chrono::Local::now());
+    let path = format!("assets/video-{}.mp4",chrono::Local::now());
     let file = OpenOptions::new().read(true).write(true).create(true).append(true).open(path).await?;
     Ok(file)
 }
