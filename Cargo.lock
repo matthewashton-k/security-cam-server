@@ -2521,6 +2521,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "security-cam-common"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "aes-gcm",
+ "argon2",
+ "async-stream",
+ "base64 0.21.5",
+ "futures-core",
+ "shuttle-runtime",
+ "tokio-stream",
+]
+
+[[package]]
 name = "security-cam-viewer"
 version = "0.1.0"
 dependencies = [
@@ -2528,14 +2542,11 @@ dependencies = [
  "actix-identity",
  "actix-session",
  "actix-web",
- "aes-gcm",
  "argon2",
- "async-stream",
- "base64 0.21.5",
  "chrono",
- "futures-core",
  "handlebars",
  "log",
+ "security-cam-common",
  "serde",
  "serde_json",
  "shuttle-actix-web",

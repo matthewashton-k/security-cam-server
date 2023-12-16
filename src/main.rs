@@ -24,7 +24,7 @@ use shuttle_secrets::SecretStore;
 use security_cam_viewer::authentication::{verify_hash};
 use security_cam_viewer::video::{append_chunk_to_file, get_video_paths, make_new_video_file};
 use crate::authentication::{AdminSessionInfo};
-use security_cam_viewer::encryption::*;
+use security_cam_common::encryption::*;
 
 use tokio_stream::StreamExt;
 

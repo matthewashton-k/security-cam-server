@@ -17,11 +17,8 @@ actix-session = { version = "0.8.0", features = ["cookie-session"] }
 log = "0.4.20"
 shuttle-secrets = "0.33.0"
 chrono = "0.4.31"
-argon2 = "0.5.2"
 actix-files = "0.6.2"
 handlebars = "4.5.0"
-aes-gcm = { version = "0.10.3", features = ["stream"] }
-async-stream = "0.3.5"
-futures-core = "0.3.29"
 tokio-stream = "0.1.14"
-base64 = "0.21.5"
+argon2 = "0.5.2"
+security-cam-common= {path = "../security-cam-common"}

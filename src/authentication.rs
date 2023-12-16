@@ -1,9 +1,7 @@
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
-use aes_gcm::{
-    aead::{KeyInit} // Or `Aes128Gcm`
-};
+
 const BUFFER_LEN: usize = 500;
 /// passed to app_data and used by the login function to verify login attempts
 pub struct AdminSessionInfo {
