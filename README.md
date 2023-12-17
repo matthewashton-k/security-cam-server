@@ -19,7 +19,7 @@ DISCLAIMER: this tool has not been audited, use at your own risk
 * AES 256 bit stream encryption is handled by my common crate at https://crates.io/crates/security-cam-common ( https://gitlab.com/matthewashton_k/security-cam-common)
 
 ## Usage
-Note: This server is meant to be for a future motion detection security camera project.\
+Note: This server is meant to be for my future motion detection security camera project.\
 Note: the motion camera should authenticate, and send encrypted videos of when motion was captured to POST /new_video\
 **SERVER SETUP**:
 * install shuttle, instructions on shuttle.rs
@@ -43,7 +43,7 @@ GET / (shows all the videos stored on the server)
 
 *I included a test encrypted mp4 (and its decrypted counterpart) in /assets encrypted with the password "pass" so feel free to test out the capabilities of the server using that if you don't want to bother with cloning and runing the client*
 
-## Client
+## Motion Detecting Client 
 * Client code and usage instructions hosted at https://gitlab.com/matthewashton_k/security-cam-client
 
 
