@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use actix_identity::IdentityMiddleware;
 use actix_web::{get, HttpMessage, HttpRequest, HttpResponse, post, Responder, web, web::ServiceConfig};
-use actix_web::http::header::{ContentType, LOCATION};
+use actix_web::http::header::{CONTENT_DISPOSITION, ContentType, LOCATION};
 use shuttle_actix_web::ShuttleActixWeb;
 use actix_web::{cookie::Key};
 use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
