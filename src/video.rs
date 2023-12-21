@@ -1,3 +1,4 @@
+use shuttle_runtime::tokio::fs;
 use shuttle_runtime::tokio::fs::{File, OpenOptions};
 use shuttle_runtime::tokio::io::AsyncWriteExt;
 
@@ -23,6 +24,11 @@ pub async fn make_new_video_file() -> Result<File, Box<dyn std::error::Error>> {
     let path = format!("assets/video-{}.mp4",chrono::Local::now());
     let file = OpenOptions::new().read(true).write(true).create(true).append(true).open(path).await?;
     Ok(file)
+}
+
+pub async fn delete_video_file(filepath: &String) -> Result<(), Box<dyn std::error::Error>> {
+    fs::remove_file(filepath).await?;
+    Ok(())
 }
 
 /// validates that the data is a valid video file

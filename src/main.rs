@@ -1,7 +1,8 @@
 mod authentication;
 
 
-use std::path::PathBuf;
+use std::io::{Error, ErrorKind};
+use std::path::{PathBuf};
 
 
 use actix_identity::IdentityMiddleware;
@@ -13,8 +14,10 @@ use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
 use actix_session::config::{CookieContentSecurity, PersistentSession};
 use actix_web::cookie::time::Duration;
 use actix_identity::Identity;
+use actix_web::web::Form;
 
 use handlebars::Handlebars;
+use handlebars::template::Parameter::Path;
 use log::{info, warn};
 use serde_json::json;
 
@@ -22,7 +25,7 @@ use shuttle_runtime::tokio::fs::File;
 
 use shuttle_secrets::SecretStore;
 use security_cam_viewer::authentication::{verify_hash};
-use security_cam_viewer::video::{append_chunk_to_file, get_video_paths, make_new_video_file};
+use security_cam_viewer::video::{append_chunk_to_file, delete_video_file, get_video_paths, make_new_video_file};
 use crate::authentication::{AdminSessionInfo};
 use security_cam_common::encryption::*;
 
@@ -45,6 +48,28 @@ pub async fn login(_session: Session,data: web::Data<AppState<'_>>, form: web::F
             .insert_header((LOCATION, "/login"))
             .finish());
     }
+}
+
+#[post("/delete_video")]
+pub async fn delete_video(form: web::Form<DeleteForm>, identity: Option<Identity>) -> actix_web::Result<impl Responder> {
+    info!("Deleting video.");
+    let path = sanitize_video_path(&form.delete)?;
+    if let Some(_) = identity {
+        delete_video_file(&path).await?;
+        return Ok(
+            HttpResponse::SeeOther().insert_header((LOCATION,"/")).finish()
+        );
+    } else {
+        warn!("Unauthorized");
+        return Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"));
+    }
+}
+
+fn sanitize_video_path(path: &String) -> Result<String, std::io::Error> {
+    let path = std::path::Path::new(path);
+    let filename = path.file_name().ok_or(Error::new(ErrorKind::NotFound, "file name invalid"))?.to_str().ok_or(Error::new(ErrorKind::NotFound, "file name invalid"))?.to_string();
+    let path = PathBuf::from("assets").join(filename);
+    Ok(path.to_string_lossy().to_string())
 }
 
 #[get("/login")]
@@ -88,8 +113,9 @@ async fn assets(
     info!("the password is: {}",password);
     if let Some(_identity) = Some(1) {
         info!("the identity was found");
+        let sanitized_filename = sanitize_video_path(&filename)?;
         // let plaintext = decrypt_bytes(&key, salt, &tokio::fs::read(PathBuf::from("assets").join(&path)).await?)?; // decrypt the file?;
-        let file = File::open(PathBuf::from("assets").join(&filename)).await?;
+        let file = File::open(sanitized_filename).await?;
         let decryptor = EncryptDecrypt {
             key:None,
             salt:None,
@@ -147,6 +173,7 @@ async fn actix_web(
                 .service(logout)
                 .service(new_video)
                 .service(assets)
+                .service(delete_video)
                 .route("/login",web::post().to(login))
         // cookie middleware
                 .wrap(SessionMiddleware::builder(
@@ -171,6 +198,10 @@ pub struct LoginForm {
     password: String,
 }
 
+#[derive(serde::Deserialize)]
+pub struct DeleteForm {
+    delete: String
+}
 
 
 #[cfg(test)]
@@ -242,6 +273,7 @@ mod tests {
                     .service(logout)
                     .service(new_video)
                     .service(assets)
+                    .service(delete_video)
                     .route("/login",web::post().to(login))
                     // cookie middleware
                     .wrap(SessionMiddleware::builder(
