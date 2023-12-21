@@ -48,6 +48,5 @@ GET / (shows all the videos stored on the server)
 
 
 TODOS:
-1. make the website look nice
-2. make a route for deleting files, or auto-deleting files after a certain amount of time
+1. make a route for deleting files, or auto-deleting files after a certain amount of time
 
