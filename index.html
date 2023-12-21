@@ -1,56 +1,101 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Viewer</title>
-    <style>
-      .grid-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
-        gap: 10px;
-        padding: 10px;
-      }
-
-      .grid-item {
-        border: 2px solid #000;
-        border-radius: 15px;
-        padding: 10px;
-      }
-
-      .grid-item video {
-        width: 100%;
-        height: auto;
-      }
-    </style>
-  </head>
-  <body>
-    <h3>Enter Decryption Password and Press Enter to Show Videos:</h3>
-    <label><input type="password" name="password" id="password" placeholder="admin decryption password"></label>
-    <br>
-    <div class="grid-container">
-      {{#each files as |f|}}
-        <div class="grid-item">
-          <h3 class="links">{{f}}</h3>
-          <video controls class="videos"></video>
+<html>
+    <head>
+        <title>Viewer</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f0f0f0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .grid-container {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+                gap: 10px;
+                padding: 10px;
+                background-color: #ffffff;
+                border-radius: 5px;
+                box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+            }
+            .grid-item {
+                border: 2px solid #000;
+                border-radius: 15px;
+                padding: 10px;
+            }
+            .grid-item video {
+                width: 100%;
+                height: auto;
+            }
+            input[type="password"] {
+                width: 20%;
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+            }
+            button {
+                width: 20%;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+                background-color: #007BFF;
+                color: #ffffff;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #0056b3;
+            }
+        </style>
+    </head>
+    <body>
+        <br>
+        <h3>Enter Decryption Password (set by client) To Show Videos:</h3>
+        <input type="password" name="password" id="password" placeholder="admin decryption password">
+        <br>
+        <div class="grid-container">
+            {{#each files as |f|}}
+                <div class="grid-item">
+                    <h3 class="links">{{f}}</h3>
+                    <video controls class="videos"></video>
+                </div>
+            {{/each}}
         </div>
-      {{/each}}
-    </div>
-    <br>
-    <button>
-      <a href="/logout">Logout</a>
-    </button>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('password').addEventListener('keyup', function(e) {
-          e.preventDefault();
-          if (e.key == "Enter") {
-              const links = document.getElementsByClassName('links');
-              const videos = document.getElementsByClassName('videos');
-              for (let i = 0; i < links.length; i++) {
-                  videos[i].src = links[i].innerText + "/" + document.getElementById('password').value;
-              }
-          }
-        });
-      });
-    </script>
-  </body>
+        <br>
+        <button id="logout">Logout</button>
+        <script>
+            document.addEventListener('DOMContentLoaded', function(){
+                document.getElementById('password').addEventListener('keyup', function(e){
+                    if (e.key === "Enter") {
+                        const links = document.getElementsByClassName('links');
+                        const videos = document.getElementsByClassName('videos');
+                        for (let i = 0; i < links.length; i++) {
+                          videos[i].src = links[i].innerText+"/"+document.getElementById('password').value;
+                        }
+                    }
+                });
+            });
+            document.getElementById('logout').addEventListener('click', function(e){
+              e.preventDefault();
+              fetch('/logout', { method: 'GET' })
+                      .then(response => {
+                        if (!response.ok) {
+                          throw new Error('Network response was not ok');
+                        }
+                        window.location.href = '/login';
+                      })
+                      .catch(error => {
+                        console.error('There has been a problem with your fetch operation:', error);
+                      });
+            });
+        </script>
+    </body>
 </html>

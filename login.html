@@ -1,21 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>
-            Login
-        </title>
+        <title>Login</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f0f0f0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }
+            form {
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 5px;
+                box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+            }
+            input[type="text"], input[type="password"] {
+                width: 100%;
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+            }
+            button {
+                width: 100%;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+                background-color: #007BFF;
+                color: #ffffff;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #0056b3;
+            }
+        </style>
     </head>
     <body>
-    <form action="/login" method="post">
-        <label>Username
-            <input type="text" name="username" placeholder="username">
-        </label>
-        <br>
-        <label>Password
-            <input type="password" name="password">
-        </label>
-        <br>
-        <button type="submit">Login</button>
-    </form>
+        <form action="/login" method="post">
+            <label>Username
+                <input type="text" name="username" placeholder="username">
+            </label>
+            <br>
+            <label>Password
+                <input type="password" name="password">
+            </label>
+            <br>
+            <button type="submit">Login</button>
+        </form>
     </body>
 </html>
