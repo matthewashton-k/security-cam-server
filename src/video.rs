@@ -33,7 +33,7 @@ pub async fn delete_video_file(filepath: &String) -> Result<(), Box<dyn std::err
 
 /// validates that the data is a valid video file
 pub fn validate_magic_string(data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
-    let magic_strings = [b"ftypisom", b"ftypMSNV"];
+    let magic_strings = [b"ftypisom", b"ftypMSNV",b"ftypmp42"];
     if data.len() < 12 {
         return Err("Invalid video".into());
     }
@@ -52,18 +52,11 @@ mod tests {
     use super::*;
     use tokio::io::AsyncReadExt;
     #[tokio::test]
-    async fn test_validate_magic_string() -> Result<(), Box<dyn std::error::Error>> {
-        let mut file = File::open("assets/test-2023-11-21_17.58.46.mp4").await?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).await?;
-        assert!(validate_magic_string(&buffer).is_ok());
-        Ok(())
-    }
-    #[tokio::test]
     async fn test_save_video() -> Result<(), Box<dyn std::error::Error>> {
         tokio::fs::remove_file("test.mp4").await;
 
-        let mut file = File::open("assets/test-2023-11-21_17.58.46.mp4").await?;
+        let mut file = File::options().read(true).open("test-unencrypted.mp4").await?;
+        eprintln!("got here");
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).await?;
         let mut file_handle = OpenOptions::new().read(true).write(true).create(true).append(true).open("test.mp4").await?;
@@ -77,7 +70,26 @@ mod tests {
         for (byte, expected_byte) in new_buffer.iter().zip(buffer) {
             assert_eq!(*byte,expected_byte);
         }
-        tokio::fs::remove_file("test.mp4").await?;
         Ok(())
+    }
+    #[tokio::test]
+    async fn test_validate_magic_string() -> Result<(), Box<dyn std::error::Error>> {
+        let mut file = File::open("test-unencrypted.mp4").await?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).await?;
+        assert!(validate_magic_string(&buffer).is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_video_paths() {
+        tokio::fs::remove_file("assets/test.mp4").await;
+        tokio::fs::remove_file("assets/test.notmp4").await;
+        tokio::fs::File::create("assets/test.mp4").await.unwrap();
+
+        let vid_paths = get_video_paths().await.expect("getvideopaths failed");
+        assert!(vid_paths.contains(&"assets/test.mp4".to_string()));
+        assert!(!vid_paths.contains(&"assets/test.notmp4".to_string()));
+
     }
 }
