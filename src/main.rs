@@ -116,17 +116,12 @@ async fn assets(
         let sanitized_filename = sanitize_video_path(&filename)?;
         // let plaintext = decrypt_bytes(&key, salt, &tokio::fs::read(PathBuf::from("assets").join(&path)).await?)?; // decrypt the file?;
         let file = File::open(sanitized_filename).await?;
-        let decryptor = EncryptDecrypt {
-            key:None,
-            salt:None,
-            file,
-        };
         info!("returning stream");
         //Ok::<_, Box<dyn std::error::Error>>(
         Ok(HttpResponse::Ok()
             .content_type("video/mp4")
             .streaming(
-                Box::pin(decryptor.decrypt_stream(password.clone()))
+                Box::pin(decrypt_stream(file, password.clone()))
             ))
 
     } else {
