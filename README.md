@@ -1,10 +1,11 @@
-# Encrypted .mp4 Hosting Tool
+# Encrypted Security Camera Server and Viewer
 
-## Features 
+## Features
 * deployment on shuttle.rs using actix web
 * argon2 hash creating helper tool in the examples folder
 * password protected mp4 file hosting
 * session based login system
+* tokio Stream based asynchronous decryption and encryption
 
 
 ## Security Features
@@ -16,7 +17,7 @@ DISCLAIMER: this tool has not been audited, use at your own risk
 * files sent to the server by a client should be encrypted using the key generation functions in the security-cam-common crate (authored by me). There is one function for generating a random key and salt pair, and another function that takes in a salt string, and a password, and uses Argon2 to derive a 32 byte key from it.
 * decrypted mp4s should never touch the file disk, as all files are decrypted and send in chunks to the user.
 * When decrypting a file, it is expected that the salt should be the first 16 bytes of the file
-* AES 256 bit stream encryption is handled by my common crate at https://crates.io/crates/security-cam-common ( https://gitlab.com/matthewashton_k/security-cam-common)
+* AES 256 bit stream encryption is handled by my common crate at https://crates.io/crates/security-cam-common ( https://github.com/matthewashton_k/security-cam-common)
 
 ## Usage
 Note: This server is meant to be for my future motion detection security camera project.\
@@ -40,13 +41,10 @@ POST /new_video\
 GET /assets/video.mp4/password (click on a link shown in the index page)\
 GET /logout \
 GET / (shows all the videos stored on the server)
+POST /upload (for uploading encrypted videos)
 
-*I included a test encrypted mp4 (and its decrypted counterpart) in /assets encrypted with the password "pass" so feel free to test out the capabilities of the server using that if you don't want to bother with cloning and runing the client*
-
-## Motion Detecting Client 
-* Client code and usage instructions hosted at https://gitlab.com/matthewashton_k/security-cam-client
-
+## Motion Detecting Client
+* Client code and usage instructions hosted at https://github.com/matthewashton_k/security-cam-client
 
 TODOS:
 1. make a route for deleting files, or auto-deleting files after a certain amount of time
-

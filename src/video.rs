@@ -20,10 +20,15 @@ pub async fn append_chunk_to_file(chunk: &[u8],file_handle: &mut File) -> Result
     Ok(())
 }
 
+#[deprecated]
 pub async fn make_new_video_file() -> Result<File, Box<dyn std::error::Error>> {
     let path = format!("assets/video-{}.mp4",chrono::Local::now());
     let file = OpenOptions::new().read(true).write(true).create(true).append(true).open(path).await?;
     Ok(file)
+}
+
+pub fn get_next_video_path() -> String {
+    format!("assets/video-{}.mp4",chrono::Local::now())
 }
 
 pub async fn delete_video_file(filepath: &String) -> Result<(), Box<dyn std::error::Error>> {

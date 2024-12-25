@@ -2,3 +2,5 @@
 .idea
 Secrets*.toml
 /assets/video*
+*.mp4
+/video_frames

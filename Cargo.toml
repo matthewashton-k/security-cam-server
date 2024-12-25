@@ -7,18 +7,35 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-shuttle-runtime = "0.33.0"
-actix-web = { version = "4.4.0", features = ["openssl"] }
-shuttle-actix-web = "0.33.0"
-serde = { version="1.0.193"}
+# shuttle-runtime = "*"
+# actix-web = { version = "*", features = ["openssl"] }
+# shuttle-actix-web = "*"
+# serde = { version = "1.0.193" }
+# serde_json = "1.0.108"
+# actix-identity = "*"
+# actix-session = { version = "*", features = ["cookie-session"] }
+# log = "0.4.20"
+# shuttle-secrets = "*"
+# chrono = "0.4.31"
+# actix-files = "*"
+# handlebars = "4.5.0"
+# tokio-stream = "*"
+# argon2 = "0.5.2"
+# security-cam-common = { path = "../security-cam-common" }
+# actix-ws = "*"
+
+shuttle-runtime = "=0.49.0"
+actix-web = { version = "=4.3.1", features = ["openssl"] }
+shuttle-actix-web = "=0.49.0"
+serde = { version = "1.0.193" }
 serde_json = "1.0.108"
 actix-identity = "0.6.0"
 actix-session = { version = "0.8.0", features = ["cookie-session"] }
 log = "0.4.20"
-shuttle-secrets = "0.33.0"
 chrono = "0.4.31"
 actix-files = "0.6.2"
 handlebars = "4.5.0"
 tokio-stream = "0.1.14"
 argon2 = "0.5.2"
-security-cam-common = {version = "0.1.5"}
+security-cam-common = { path = "../security-cam-common" }
+actix-ws = "0.3.0"
