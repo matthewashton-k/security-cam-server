@@ -189,7 +189,10 @@ async fn upload(
         file_handle.write_all(frame.as_ref()).await?;
         frame_num += 1;
     }
-    execute_ffmpeg(video_num, frame_num, fps).unwrap();
+    // spawn a task for executing ffmpeg
+    // actix_web::rt::spawn(async move {
+        execute_ffmpeg(video_num, frame_num, fps).unwrap();
+    // });
     Ok(HttpResponse::Ok().body("SUCCESS"))
 }
 
