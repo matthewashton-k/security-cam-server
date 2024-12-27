@@ -1,5 +1,4 @@
 # Encrypted Security Camera Server and Viewer
-
 ## Features
 * deployment on shuttle.rs using actix web
 * argon2 hash creating helper tool in the examples folder
@@ -47,4 +46,5 @@ POST /upload (for uploading encrypted videos)
 * Client code and usage instructions hosted at https://github.com/matthewashton_k/security-cam-client
 
 TODOS:
-1. make a route for deleting files, or auto-deleting files after a certain amount of time
+1. test a route for deleting files, or auto-deleting files after a certain amount of time
+2. Delete deprecated endpoints after thouroughly testing the upload endpoint
