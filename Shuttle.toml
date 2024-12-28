@@ -1,0 +1,8 @@
+[build]
+assets = [
+    "index.html", # include file.txt
+    "login.html",
+]
+
+[deploy]
+include = ["index.html", "login.html", "assets/*", "video_frames/*"]

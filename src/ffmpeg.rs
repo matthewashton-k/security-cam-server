@@ -2,11 +2,13 @@ use std::fs;
 use std::io::Result;
 use std::process::Command;
 
+use chrono::{Local, NaiveDateTime};
+
 /// executes ffmpeg -r 5 -f image2 -s 720x480 -start_number 0 -i video_num.%d.jpg -vframes frame_num -vcodec libx264 -crf 25  -pix_fmt yuv420p video_num.mp4
 /// then deletes all the unneeded jpg files
 pub fn execute_ffmpeg(video_num: usize, frame_num: u64, fps: usize) -> Result<String> {
     let input = format!("video_frames/{}.{}.jpg", video_num, "%d");
-    let output = format!("assets/{}.unencrypted.mp4", video_num);
+    let output = format!("assets/{}.{}.unencrypted.mp4", Local::now(), video_num);
 
     Command::new("ffmpeg")
         .arg("-r")

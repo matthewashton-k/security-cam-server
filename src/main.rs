@@ -22,6 +22,7 @@ use security_cam_common::futures::TryStreamExt;
 use serde_json::json;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::tokio;
+use shuttle_runtime::tokio::fs;
 use shuttle_runtime::tokio::fs::remove_file;
 use shuttle_runtime::tokio::sync::mpsc::channel;
 use shuttle_runtime::SecretStore;
@@ -148,24 +149,14 @@ async fn upload(
             .into_stream()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
         while let Some(chunk_result) = stream.next().await {
-            info!("decrypted frame getting converted to sendable stream");
             let result = chunk_result
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
-            info!(
-                "the frame: {:?}",
-                result.as_ref().and_then(|val| {
-                    println!("frame length: {}", val.len());
-                    Ok(val)
-                })
-            );
+
             if tx.send(result).await.is_err() {
                 warn!("error sending frame over");
                 break;
-            } else {
-                info!("sent the frame over");
             }
         }
-        info!("done converting frames to sendables");
     });
 
     // Convert the receiver into a Send + 'static stream
@@ -173,13 +164,11 @@ async fn upload(
 
     // Now we can create the FrameReader with our Send stream
     let frame_reader = FrameReader::new(send_stream);
-    info!("created frame reader");
     let mut decrypted_frames = Box::pin(decrypt_frame_reader(
         frame_reader,
         frame_size,
         password.clone(),
     ));
-    info!("started decryption stream");
     let mut frame_num = 0;
     while let Some(frame) = decrypted_frames.next().await {
         let frame = match frame {
@@ -189,35 +178,35 @@ async fn upload(
                 break;
             }
         };
-        info!("decrypted frame here");
         let mut file_handle =
             File::create(format!("video_frames/{}.{}.jpg", video_num, frame_num)).await?;
         file_handle.write_all(frame.as_ref()).await?;
         frame_num += 1;
     }
-    match execute_ffmpeg(video_num, frame_num, fps) {
-        Ok(file_path) => {
-            let (key, salt) = generate_key(&password)?;
-            {
-                let mut encrypted = Box::pin(
-                    encrypt_stream(key, salt, File::open(&file_path).await?)
-                        .filter(|chunk| chunk.is_ok()),
-                );
-                let encrypted_path = file_path.replace(".unencrypted", "");
-                let mut encrypted_fd = File::create(&encrypted_path).await?;
-                while let Some(Ok(chunk)) = encrypted.next().await {
-                    encrypted_fd.write_all(&chunk).await?;
+    actix_web::rt::spawn(async move {
+        match execute_ffmpeg(video_num, frame_num, fps) {
+            Ok(file_path) => {
+                let (key, salt) = generate_key(&password)?;
+                {
+                    let mut encrypted = Box::pin(
+                        encrypt_stream(key, salt, File::open(&file_path).await?)
+                            .filter(|chunk| chunk.is_ok()),
+                    );
+                    let encrypted_path = file_path.replace(".unencrypted", "");
+                    let mut encrypted_fd = File::create(&encrypted_path).await?;
+                    while let Some(Ok(chunk)) = encrypted.next().await {
+                        encrypted_fd.write_all(&chunk).await?;
+                    }
+                    encrypted_fd.sync_all().await?;
                 }
-                encrypted_fd.sync_all().await?;
+                tokio::fs::remove_file(file_path).await?;
             }
-            tokio::fs::remove_file(file_path).await?;
-            println!("removed file")
-        }
-        Err(e) => {
-            println!("error with ffmpeg");
-            return Err(e.into());
-        }
-    }
+            Err(e) => {
+                println!("error with ffmpeg: {e}");
+            }
+        };
+        Ok::<(), Box<dyn std::error::Error>>(())
+    });
     Ok(HttpResponse::Ok().body("SUCCESS"))
 }
 
@@ -425,6 +414,10 @@ async fn index(
 async fn actix_web(
     #[Secrets] secret_store: SecretStore,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
+    // create dirs
+    fs::create_dir("assets").await;
+    fs::create_dir("video_frames").await;
+
     let admin_hash = secret_store
         .get("ADMIN_HASH")
         .expect("ADMIN_HASH not found");
