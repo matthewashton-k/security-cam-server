@@ -6,7 +6,7 @@ use std::process::Command;
 /// then deletes all the unneeded jpg files
 pub fn execute_ffmpeg(video_num: usize, frame_num: u64, fps: usize) -> Result<String> {
     let input = format!("video_frames/{}.{}.jpg", video_num, "%d");
-    let output = format!("video_frames/{}.unencrypted.mp4", video_num);
+    let output = format!("assets/{}.unencrypted.mp4", video_num);
 
     Command::new("ffmpeg")
         .arg("-r")

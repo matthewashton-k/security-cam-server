@@ -17,10 +17,11 @@ use actix_ws::AggregatedMessage;
 use handlebars::template::Parameter::Path;
 use handlebars::Handlebars;
 use log::{info, warn};
-use security_cam_common::futures::StreamExt;
+use security_cam_common::futures::future;
 use security_cam_common::futures::TryStreamExt;
 use serde_json::json;
 use shuttle_actix_web::ShuttleActixWeb;
+use shuttle_runtime::tokio;
 use shuttle_runtime::tokio::fs::remove_file;
 use shuttle_runtime::tokio::sync::mpsc::channel;
 use shuttle_runtime::SecretStore;
@@ -30,6 +31,7 @@ use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::StreamExt;
 
 use shuttle_runtime::tokio::fs::File;
 
@@ -172,7 +174,11 @@ async fn upload(
     // Now we can create the FrameReader with our Send stream
     let frame_reader = FrameReader::new(send_stream);
     info!("created frame reader");
-    let mut decrypted_frames = Box::pin(decrypt_frame_reader(frame_reader, frame_size, password));
+    let mut decrypted_frames = Box::pin(decrypt_frame_reader(
+        frame_reader,
+        frame_size,
+        password.clone(),
+    ));
     info!("started decryption stream");
     let mut frame_num = 0;
     while let Some(frame) = decrypted_frames.next().await {
@@ -189,10 +195,29 @@ async fn upload(
         file_handle.write_all(frame.as_ref()).await?;
         frame_num += 1;
     }
-    // spawn a task for executing ffmpeg
-    // actix_web::rt::spawn(async move {
-        execute_ffmpeg(video_num, frame_num, fps).unwrap();
-    // });
+    match execute_ffmpeg(video_num, frame_num, fps) {
+        Ok(file_path) => {
+            let (key, salt) = generate_key(&password)?;
+            {
+                let mut encrypted = Box::pin(
+                    encrypt_stream(key, salt, File::open(&file_path).await?)
+                        .filter(|chunk| chunk.is_ok()),
+                );
+                let encrypted_path = file_path.replace(".unencrypted", "");
+                let mut encrypted_fd = File::create(&encrypted_path).await?;
+                while let Some(Ok(chunk)) = encrypted.next().await {
+                    encrypted_fd.write_all(&chunk).await?;
+                }
+                encrypted_fd.sync_all().await?;
+            }
+            tokio::fs::remove_file(file_path).await?;
+            println!("removed file")
+        }
+        Err(e) => {
+            println!("error with ffmpeg");
+            return Err(e.into());
+        }
+    }
     Ok(HttpResponse::Ok().body("SUCCESS"))
 }
 
@@ -406,7 +431,7 @@ async fn actix_web(
     let admin_user = secret_store
         .get("ADMIN_USER")
         .expect("ADMIN_USER not found");
-    let key = Key::from(secret_store.get("KEY").unwrap().as_bytes());
+    let key = Key::generate();
     let config = move |cfg: &mut ServiceConfig| {
         // create static site builder
 
