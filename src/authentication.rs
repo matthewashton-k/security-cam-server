@@ -25,33 +25,6 @@ impl AdminSessionInfo {
     }
 }
 
-/// obsolete function after adopting actix-identity
-// pub async fn validate_session(session: &Session, admin_session_info: &SessionInfo) -> actix_web::Result<(),actix_web::error::Error> {
-//     return match session.get::<String>("session_id") {
-//         Ok(Some(hash)) => {
-//             // the hash of the authenticated user
-//             info!("hash was read from cookie: {}", hash);
-//             if let Ok(result) = verify_hash(
-//                 &admin_session_info.username,
-//                 &admin_session_info.password,
-//                 &hash,
-//             ) {
-//                 info!("hash was verified: {}", result);
-//                 if result {
-//                     return Ok(());
-//                 }
-//             }
-//
-//             // if the stored hash wasnt the right format or the stored hash wasnt verified
-//             Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
-//         }
-//         _ => {
-//             info!("no hash was found in cookie");
-//             Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
-//         }
-//     }
-// }
-
 /// creates a salted argon2 hash of the password and username concatenated together
 pub fn create_hash(username: &str, password: &str) -> Result<String, Box<dyn std::error::Error>> {
     let salt = SaltString::generate(&mut OsRng);

@@ -6,18 +6,15 @@ use actix_session::config::{CookieContentSecurity, PersistentSession};
 use actix_session::{storage::CookieSessionStore, Session, SessionMiddleware};
 use actix_web::cookie::time::Duration;
 use actix_web::cookie::Key;
-use actix_web::http::header::{ContentType, CONTENT_DISPOSITION, LOCATION};
+use actix_web::http::header::{ContentType, LOCATION};
 use actix_web::rt;
 use actix_web::web::Bytes;
-use actix_web::web::Form;
 use actix_web::{
     get, post, web, web::ServiceConfig, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
 use actix_ws::AggregatedMessage;
-use handlebars::template::Parameter::Path;
 use handlebars::Handlebars;
 use log::{info, warn};
-use security_cam_common::futures::future;
 use security_cam_common::futures::TryStreamExt;
 use serde_json::json;
 use shuttle_actix_web::ShuttleActixWeb;
@@ -120,7 +117,7 @@ pub async fn logout(user: Identity) -> impl Responder {
 #[post("/upload/{video_num}/{fps}/{frame_size}")]
 async fn upload(
     _session: Session,
-    mut body: web::Payload,
+    body: web::Payload,
     data: web::Data<AppState<'_>>,
     path: web::Path<(usize, usize, usize)>,
     identity: Option<Identity>,
@@ -210,164 +207,6 @@ async fn upload(
     Ok(HttpResponse::Ok().body("SUCCESS"))
 }
 
-#[get("/new_video_stream/{video_num}/{fps}")]
-async fn new_video_stream(
-    _session: Session,
-    mut body: web::Payload,
-    data: web::Data<AppState<'_>>,
-    path: web::Path<(usize, usize)>,
-    identity: Option<Identity>,
-    request: HttpRequest,
-) -> actix_web::Result<impl Responder> {
-    info!("saving new video from video stream");
-    if identity.is_some() {
-        // set up the websocket
-        let (res, _, stream) = actix_ws::handle(&request, body)?;
-        let mut stream = Box::pin(
-            stream
-                .aggregate_continuations()
-                .max_continuation_size(1024 * 1024 * 1024),
-        );
-
-        let password = match _session.get::<String>("password")? {
-            Some(pass) => pass,
-            None => {
-                log::error!("Password not found in session");
-                return Err(actix_web::error::ErrorInternalServerError(
-                    "Password not set",
-                ));
-            }
-        };
-        // spawn a task to handle the stream of frames
-        rt::spawn(async move {
-            println!("got here in the sasdfa");
-            let mut video_num = path.0;
-            let fps = path.1;
-            let mut frame_num = 0;
-            // while the websocket still has messages in it
-            while let Some(Ok(msg)) = stream.next().await {
-                match msg {
-                    // each message is a frame encrypted with different salt
-                    AggregatedMessage::Binary(encrypted_frame) => {
-                        println!("got an encrypted frame");
-                        let mut file_handle =
-                            File::create(format!("video_frames/{}.{}.jpg", video_num, frame_num))
-                                .await
-                                .expect("failed to create file");
-                        let mut decrypted_frame = Box::pin(decrypt_stream_frame(
-                            Cursor::new(encrypted_frame),
-                            password.clone(),
-                        ));
-                        while let Some(Ok(chunk)) = decrypted_frame.next().await {
-                            file_handle
-                                .write_all(&chunk)
-                                .await
-                                .expect("failed to write to file");
-                        }
-                        frame_num += 1;
-                    }
-                    // on close, generate a new key and salt, encrypt the video, and delete the unencrypted video
-                    AggregatedMessage::Close(reason) => {
-                        println!("closing stream: {:?}", reason);
-                        match execute_ffmpeg(video_num, frame_num, fps) {
-                            Ok(filepath) => {
-                                info!("ffmpeg executed successfully: {}", filepath);
-                                let (key, salt) =
-                                    generate_key(&password).expect("failed to generate key");
-
-                                // encrypt the mp4 file
-                                let mut enc_stream = Box::pin(encrypt_stream(
-                                    key,
-                                    salt,
-                                    File::create(&filepath).await.expect("couldn't make file"),
-                                ));
-
-                                let mut encrypted_file_handle =
-                                    File::create(filepath.replace(".unencrypted", ""))
-                                        .await
-                                        .expect("couldn't make file");
-
-                                while let Some(Ok(chunk)) = enc_stream.next().await {
-                                    encrypted_file_handle
-                                        .write_all(&chunk)
-                                        .await
-                                        .expect("failed to write to file");
-                                }
-                                remove_file(filepath)
-                                    .await
-                                    .expect("failed to delete the old unencrypted file");
-                            }
-                            Err(e) => warn!("failed to execute ffmpeg: {}", e),
-                        }
-                    }
-                    AggregatedMessage::Text(text) => {
-                        println!("got : {text}")
-                    }
-                    AggregatedMessage::Ping(_) => todo!(),
-                    AggregatedMessage::Pong(_) => todo!(),
-                }
-            }
-        });
-        Ok(res)
-    } else {
-        warn!("unauthorized");
-        Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
-    }
-}
-
-#[post("/new_video_ffmpeg/{video_num}/{current}/{count}/{fps}")]
-#[deprecated]
-async fn new_video_ffmpeg(
-    mut body: web::Payload,
-    path: web::Path<(usize, u64, u64, usize)>,
-    identity: Option<Identity>,
-) -> actix_web::Result<impl Responder> {
-    info!("saving new video");
-    let mut frame = vec![];
-    let path = path.into_inner();
-    let fps = path.3;
-    let frame_count = path.2;
-    let frame_num = path.1;
-    let video_num = path.0;
-    if let Some(_identity) = identity {
-        // if the user is logged in
-        let mut file_handle =
-            File::create(format!("video_frames/{}.{}.jpg", video_num, frame_num)).await?;
-        while let Some(Ok(chunk)) = body.next().await {
-            <dyn std::io::Write>::write_all(&mut frame, chunk.as_ref())?;
-        }
-        file_handle.write_all(&frame).await?;
-        if frame_num == frame_count {
-            drop(file_handle);
-            execute_ffmpeg(video_num, frame_count + 1, fps)?;
-        }
-        Ok(HttpResponse::Ok().body("SUCCESS"))
-    } else {
-        warn!("unauthorized");
-        Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
-    }
-}
-
-#[post("/new_video")]
-#[deprecated]
-async fn new_video(
-    mut body: web::Payload,
-    identity: Option<Identity>,
-) -> actix_web::Result<impl Responder> {
-    info!("saving new video");
-    if let Some(_identity) = identity {
-        // if the user is logged in
-        let mut file_handle = make_new_video_file().await?;
-        while let Some(Ok(chunk)) = body.next().await {
-            append_chunk_to_file(&chunk, &mut file_handle).await?;
-        }
-        Ok(HttpResponse::Ok().body("SUCCESS"))
-    } else {
-        warn!("unauthorized");
-        Err(actix_web::error::ErrorForbidden("UNAUTHORIZED"))
-    }
-}
-
 #[get("/assets/{filename}/{password}")]
 async fn assets(
     _data: web::Data<AppState<'_>>,
@@ -448,11 +287,8 @@ async fn actix_web(
                 .service(index)
                 .service(login_form)
                 .service(logout)
-                .service(new_video)
                 .service(assets)
-                .service(new_video_ffmpeg)
                 .service(delete_video)
-                .service(new_video_stream)
                 .service(upload)
                 .route("/login", web::post().to(login))
                 // cookie middleware
@@ -484,37 +320,6 @@ pub struct DeleteForm {
 
 #[cfg(test)]
 mod tests {
-    // use aes_gcm::Key;
-    // use argon2::password_hash::rand_core::{OsRng, RngCore};
-    // use argon2::password_hash::SaltString;
-    // use shuttle_runtime::tokio::io::AsyncReadExt;
-    // use shuttle_runtime::tokio::runtime::Builder;
-    // use crate::encryption::{decrypt_bytes, encrypt_bytes, generate_key};
-    //
-    // #[test]
-    // fn test_generate_key() {
-    //     let password = "password123";
-    //     let result = generate_key(password);
-    //     assert!(result.is_ok());
-    // }
-    //
-    // #[test]
-    // fn testt_encrypt_decrypt() {
-    //     let password = "password123";
-    //     let (key, salt) = generate_key(password).unwrap();
-    //
-    //     let mut plaintext: Vec<u8> = vec![0;50];
-    //     OsRng.fill_bytes(&mut plaintext);
-    //
-    //     let encrypted = encrypt_bytes(&key, salt.clone(), &plaintext).unwrap();
-    //     assert_ne!(encrypted, plaintext);
-    //
-    //     let decrypted = decrypt_bytes(&key, salt, &encrypted).unwrap();
-    //     println!("{:?}", decrypted);
-    //     println!("{:?}", plaintext);
-    //     assert_eq!(decrypted, plaintext);
-    // }
-
     use actix_web::cookie::Key;
     use actix_web::web::ServiceConfig;
     use actix_web::App;
@@ -525,7 +330,7 @@ mod tests {
     use actix_identity::IdentityMiddleware;
     use actix_session::config::PersistentSession;
     use actix_session::storage::CookieSessionStore;
-    use actix_session::*;
+
     use actix_web::cookie::time::Duration;
     use actix_web::web;
     use actix_web::HttpResponse;
@@ -554,7 +359,6 @@ mod tests {
                     .service(index)
                     .service(login_form)
                     .service(logout)
-                    .service(new_video)
                     .service(assets)
                     .service(delete_video)
                     .route("/login", web::post().to(login))
