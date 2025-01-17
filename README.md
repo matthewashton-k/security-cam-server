@@ -18,7 +18,7 @@ DISCLAIMER: this tool has not been audited, use at your own risk.
 * Cookies expire after some time.
 * Files sent to the server by a client should be encrypted using the key generation and encryption functions in the security-cam-common crate (authored by me). There is one function for generating a random key and salt pair, and another function that takes in a salt string, and a password, and uses Argon2 to derive a 32 byte key from it.
 * When decrypting a file, it is expected that the salt should be the first 16 bytes of the file.
-* AES 256 bit stream encryption is handled by my common crate at https://github.com/matthewashton_k/security-cam-common
+* AES 256 bit stream encryption is handled by my common crate at https://github.com/matthewashton-k/security-cam-common
 
 ## Usage
 **SERVER SETUP**:
