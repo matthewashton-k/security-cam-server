@@ -21,16 +21,12 @@ DISCLAIMER: this tool has not been audited, use at your own risk
 * AES 256 bit stream encryption is handled by my common crate at https://github.com/matthewashton_k/security-cam-common
 
 ## Usage
-Note: This server is meant to be for my future motion detection security camera project.\
-Note: the motion camera should authenticate, and send encrypted videos of when motion was captured to POST /new_video\
 **SERVER SETUP**:
 * install shuttle, instructions on shuttle.rs
 * clone this repo
 * use ```cargo run --example generate_password_hash <user> <pass>``` to generate an argon2 hash that will be used for authentication
-* use ```openssl rand -base64 64``` to generate a key to be used for encrypting session id cookies
 * in the crate root create a file called Secrets.toml with this format:
 ```
-KEY = "<cookie key>"
 ADMIN_USER = "<admin user>"
 ADMIN_HASH = "<argon2 hash>"
 ```
@@ -38,12 +34,12 @@ ADMIN_HASH = "<argon2 hash>"
 
 **ROUTES**\
 GET /login\
-POST /new_video\
 GET /assets/video.mp4/password (click on a link shown in the index page)\
 GET /logout \
 GET / (shows all the videos stored on the server)
 POST /upload (for uploading encrypted videos)
+<br> POST /delete video
 
 TODOS:
-1. Fest a route for deleting files, or auto-deleting files after a certain amount of time
-2. Delete deprecated endpoints after thouroughly testing the upload endpoint
+1. Test a route for deleting files, or auto-deleting files after a certain amount of time.
+2. Delete deprecated endpoints after thouroughly testing the upload endpoint.
