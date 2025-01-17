@@ -7,7 +7,7 @@
 * tokio Stream based asynchronous decryption and encryption
 
 ## Crates:
-Common (encrypted streams, FrameReader): https://github.com/matthewashton_k/security-cam-common
+Common (encrypted streams, FrameReader): https://github.com/matthewashton-k/security-cam-common
 <br> Client (motion detection, v4l, frame processing): https://github.com/matthewashton-k/security-cam-client
 
 ## Security Features
